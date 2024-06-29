@@ -17,7 +17,7 @@ Including another URLconf
 from django.urls import path
 from accounts import views
 
-from accounts import views as accounts_views  # 导入 accounts 应用的 views 模块
+from accounts import views as accounts_views  # 导入 accounts 应用
 
 urlpatterns = [
     path('', accounts_views.login_view, name='home'),  # 根路径路由到登录页面
