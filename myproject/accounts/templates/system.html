@@ -1,0 +1,60 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-image: url("{% static 'login.jpg' %}"); /* 设置背景图片的路径 */
+            background-size: cover;
+            background-position: center;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        h1 {
+            font-size: 3rem;
+            text-align: center;
+            color: white;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+            text-align: center;
+        }
+        li {
+            margin-bottom: 10px;
+        }
+        li a {
+            display: block;
+            padding: 20px; /* 增大按钮的大小 */
+            background-color: rgba(255, 255, 255, 0.5); /* 设置按钮的背景色，透明度可以根据需要调整 */
+            color: black;
+            text-decoration: none;
+            font-size: 1.5rem; /* 按钮字体大小 */
+            border-radius: 10px;
+            transition: background-color 0.3s ease;
+        }
+        li a:hover {
+            background-color: rgba(255, 255, 255, 0.8); /* 按钮悬停时的背景色 */
+        }
+    </style>
+</head>
+<body>
+    <h1>欢迎来到智慧可视化系统！</h1>
+    <ul>
+        <li><a href="{% url '主要信息' %}">主要信息</a></li>
+        <li><a href="{% url '水下系统' %}">水下系统</a></li>
+        <li><a href="{% url '数据中心' %}">数据中心</a></li>
+        <li><a href="{% url '智能中心' %}">智能中心</a></li>
+        <li><a href="{% url '管理员管理' %}">管理员管理</a></li>
+    </ul>
+</body>
+</html>
+

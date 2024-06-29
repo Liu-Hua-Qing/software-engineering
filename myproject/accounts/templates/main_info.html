@@ -1,0 +1,327 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>海洋牧场监测可视化系统</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #0e1e2a;
+            color: white;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            padding: 20px;
+            max-width: 1200px;
+            margin: auto;
+        }
+        .header {
+            font-size: 24px;
+            margin-bottom: 20px;
+            width: 100%;
+            text-align: center;
+        }
+        .navbar {
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            background-color: #1b2b3c;
+            padding: 10px;
+        }
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            font-size: 18px;
+        }
+        .section {
+            background-color: #1b2b3c;
+            padding: 10px;
+            margin: 10px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            flex: 1 1 30%; /* 占据30%的宽度 */
+            min-width: 300px; /* 最小宽度 */
+        }
+        .video-section {
+            order: 1; /* 控制在flex布局中的顺序 */
+        }
+        .data-section {
+            order: 2;
+        }
+        .history-section {
+            order: 3;
+        }
+        .section h3 {
+            margin-top: 0;
+        }
+        .section img {
+            width: 100%;
+            border-radius: 8px;
+        }
+        .section .data-display, .section .map-display, .section .history-display, .section .device-status {
+            margin-top: 10px;
+        }
+        .section .data-display p, .section .map-display p, .section .history-display p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        .video-display video {
+            width: 100%;
+            border-radius: 8px;
+        }
+        .video-controls, .additional-functions {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 10px;
+        }
+        .video-controls button, .additional-functions button {
+            background-color: #2e3d55;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .chart-container {
+            width: 100%;
+            text-align: center;
+        }
+        .map-container {
+            width: 100%;
+            height: 500px; /* 设定地图容器高度 */
+            border-radius: 8px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <a href="#">主要信息</a>
+    </div>
+    <div class="container">
+        <div class="section video-section">
+            <div class="video-display">
+                <h3>视频展示</h3>
+                <video controls autoplay loop>
+                    <source src="{% static 'test.mp4' %}" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+            <!--
+            <div class="video-controls">
+                <button>摄像机</button>
+                <button>灯光</button>
+                <button>清洁刷</button>
+            </div>
+            <div class="additional-functions">
+                <button>视频回放</button>
+                <button>视频同步播放</button>
+                <button>云台摄像机</button>
+            </div>
+        </div>
+        -->
+        <div class="section data-section">
+            <div class="data-display">
+                <h3>水文数据展示</h3>
+                <p>电池电压 (V): <span id="voltage">{{latest_info.v}}</span></p>
+                <p>盐度 (%): <span id="salinity">{{latest_info.salt}}</span></p>
+                <p>溶解氧 (mg/L): <span id="oxygen">{{latest_info.oxygen}}</span></p>
+                <p>浊度 (NTU): <span id="turbidity">{{latest_info.ntu}}</span></p>
+                <p>pH: <span id="ph">{{latest_info.ph}}</span></p>
+                <p>水温 (°C): <span id="temperature">{{latest_info.tem}}</span></p>
+            </div>
+            <div class="map-display">
+                <h3>海洋牧场位置展示</h3>
+                <div id="map" class="map-container"></div>
+            </div>
+        </div>
+        <div class="section history-section">
+            <div class="history-display">
+                <h3>历史水文数据展示</h3>
+                <div class="chart-container">
+                    <canvas id="lineChart" width="400" height="300"></canvas>
+                </div>
+                <div class="date-selector">
+                    <label for="startDate">选择开始日期:</label>
+                    <input type="date" id="startDate" name="startDate">
+                    <label for="endDate">选择结束日期:</label>
+                    <input type="date" id="endDate" name="endDate">
+                    <button onclick="updateChartData()">更新数据</button>
+                </div>
+            </div>
+            <div class="device-status">
+                <h3>设备状态</h3>
+                <p>设备 ID: <span id="deviceId">8D19C331-4F08-47A1</span></p>
+                <p>主控板版本: <span id="version">V0.1.1</span></p>
+                <p>温度: <span id="deviceTemperature">39.64°C</span></p>
+                <p>状态: <span id="status">断开</span></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(showMap, showError);
+            } else {
+                alert("您的浏览器不支持地理位置功能。");
+            }
+        });
+
+        function showMap(position) {
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
+
+            // 创建地图
+            const map = L.map('map').setView([latitude, longitude], 15);
+
+            // 添加地图图层
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+
+            // 添加标记
+            L.marker([latitude, longitude]).addTo(map)
+                .bindPopup('您的位置')
+                .openPopup();
+
+                            // 调整地图大小
+            window.addEventListener('resize', function() {
+                map.invalidateSize();
+            });
+        }
+
+        function showError(error) {
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    alert("用户拒绝了地理位置请求。");
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    alert("位置信息不可用。");
+                    break;
+                case error.TIMEOUT:
+                    alert("请求获取用户位置超时。");
+                    break;
+                case error.UNKNOWN_ERROR:
+                    alert("未知错误发生。");
+                    break;
+            }
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            // 模拟从数据库获取的数据
+            const data = {
+                voltage: 25.90,
+                salinity: 34.16,
+                oxygen: 0.00,
+                turbidity: 2.05,
+                ph: 8.37,
+                temperature: 15,
+                deviceId: '8D19C331-4F08-47A1',
+                version: 'V0.1.1',
+                deviceTemperature: '39.64°C',
+                status: '断开',
+                historyData: {
+                    labels: ['2023-01-31 21:40', '2023-02-28 21:40', '2023-03-31 21:40', '2023-04-30 21:40', '2023-05-31 21:40'],
+                    voltageData: [25.90, 26.05, 25.80, 25.95, 25.70],
+                    salinityData: [34.16, 34.20, 34.10, 34.25, 34.15],
+                    oxygenData: [0.00, 0.10, 0.05, 0.15, 0.20],
+                    turbidityData: [2.05, 2.10, 2.00, 2.15, 2.05],
+                    phData: [8.37, 8.40, 8.35, 8.45, 8.50],
+                    temperatureData: [15, 15.5, 14.5, 16, 17]
+                }
+            };
+
+            // 更新页面中的数据
+            document.getElementById('voltage').textContent = data.voltage;
+            document.getElementById('salinity').textContent = data.salinity;
+            document.getElementById('oxygen').textContent = data.oxygen;
+            document.getElementById('turbidity').textContent = data.turbidity;
+            document.getElementById('ph').textContent = data.ph;
+            document.getElementById('temperature').textContent = data.temperature;
+            document.getElementById('deviceId').textContent = data.deviceId;
+            document.getElementById('version').textContent = data.version;
+            document.getElementById('deviceTemperature').textContent = data.deviceTemperature;
+            document.getElementById('status').textContent = data.status;
+
+            // 绘制初始折线图
+            const ctx = document.getElementById('lineChart').getContext('2d');
+            const lineChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.historyData.labels,
+                    datasets: [
+                        {
+                            label: '电池电压 (V)',
+                            data: data.historyData.voltageData,
+                            borderColor: '#FF5733',
+                            backgroundColor: 'rgba(255, 87, 51, 0.2)',
+                            borderWidth: 2
+                        },
+                        {
+                            label: '盐度 (%)',
+                            data: data.historyData.salinityData,
+                            borderColor: '#33FF57',
+                            backgroundColor: 'rgba(51, 255, 87, 0.2)',
+                            borderWidth: 2
+                        },
+                        {
+                            label: '溶解氧 (mg/L)',
+                            data: data.historyData.oxygenData,
+                            borderColor: '#337AFF',
+                            backgroundColor: 'rgba(51, 122, 255, 0.2)',
+                            borderWidth: 2
+                        },
+                        {
+                            label: '浊度 (NTU)',
+                            data: data.historyData.turbidityData,
+                            borderColor: '#D933FF',
+                            backgroundColor: 'rgba(217, 51, 255, 0.2)',
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'pH',
+                            data: data.historyData.phData,
+                            borderColor: '#FF33F1',
+                            backgroundColor: 'rgba(255, 51, 241, 0.2)',
+                            borderWidth: 2
+                        },
+                        {
+                            label: '水温 (°C)',
+                            data: data.historyData.temperatureData,
+                            borderColor: '#FFDD33',
+                            backgroundColor: 'rgba(255, 221, 51, 0.2)',
+                            borderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // 更新数据函数（用于日期选择后的更新）
+            function updateChartData() {
+                const startDate = document.getElementById('startDate').value;
+                const endDate = document.getElementById('endDate').value;
+                // 这里应根据选择的日期从数据库获取相应的数据，并更新图表和数据展示
+                // 这里暂时只是示例，没有实际的数据库交互和数据更新逻辑
+                console.log('更新数据范围:', startDate, '至', endDate);
+            }
+        });
+        
+    </script>
+    
+</body>
+</html>

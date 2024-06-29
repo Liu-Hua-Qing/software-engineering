@@ -1,0 +1,444 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>海洋牧场监测可视化系统</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #0e1e2a;
+            color: white;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            display: flex;
+            flex-direction: column; /* 列排列 */
+            max-width: 1200px;
+            margin: auto;
+        }
+        .navbar {
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            background-color: #1b2b3c;
+            padding: 10px;
+        }
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            font-size: 18px;
+        }
+        .section {
+            background-color: #1b2b3c;
+            padding: 10px;
+            margin: 10px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 100%; /* 每个部分占据100%的宽度 */
+        }
+        .data-section {
+            order: 1; /* 调整数据区域在容器中的顺序 */
+        }
+        .dashboard {
+            order: 2; /* 调整仪表盘区域在容器中的顺序 */
+            text-align: center;
+            padding: 10px; /* 减少内边距 */
+            background-color: #1b2b3c;
+            border-radius: 8px;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.1); /* 减少阴影效果 */
+            margin-top: 10px; /* 调整顶部留白 */
+        }
+        .history-section {
+            order: 3; /* 调整折线图区域在容器中的顺序 */
+            padding: 10px; /* 减少内边距 */
+            margin-top: 10px; /* 调整顶部留白 */
+        }
+        .dashboard h3 {
+            margin-top: 0;
+        }
+        .dashboard-score {
+            font-size: 36px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .data-display {
+            text-align: center;
+            padding: 10px;
+        }
+        .data-display h3 {
+            margin-top: 0;
+        }
+        .chart-container {
+            text-align: center;
+            margin-top: 2px; /* 调整折线图与上方数据区域的间距 */
+        }
+        #lineChart {
+            width: 100%; /* 设置折线图宽度占父容器100% */
+            height: auto; /* 自动调整高度 */
+            max-width: 600px; /* 最大宽度限制 */
+        }
+        .gauge {
+            width: 100%; /* 使得仪表盘占据整个容器的宽度 */
+            height: 400px; /* 设置固定高度 */
+            position: relative;
+        }
+        .gauge-body {
+            width: 100%;
+            height: 100%;
+            background: #ccc;
+            border-radius: 50%;
+            position: relative;
+            overflow: hidden;
+        }
+        .gauge-cover {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 40px;
+            background: #0e1e2a;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5em;
+        }
+        .gauge-pointer {
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-bottom: 120px solid #ff5733;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform-origin: center bottom;
+            transform: translateX(-50%) translateY(-100%) rotate(0deg);
+            transition: transform 0.3s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <a href="#">水下系统</a>
+    </div>
+    <div class="container">
+        <div class="section data-section">
+            <div class="data-display"> 
+                               
+                <div id="fishCount">
+                    <h3>鱼群数量</h3>
+                    <p id="currentCount">{{ total }}</p>
+                </div>
+                <div id="dailyUpdates">
+                    <h3>今日新增</h3>
+                    <p id="newAdditions">{{ data.add }}</p>
+                </div>
+                <div id="dailyDeaths">
+                    <h3>今日死亡</h3>
+                    <p id="deaths">{{ data.minus }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section dashboard">
+            <h3>海洋环境评分</h3>
+            <div class="gauge">
+                <div class="gauge-body"></div>
+                <div class="gauge-pointer"></div>
+                <div class="gauge-cover">{{data.score}}</div>
+            </div>
+        </div>
+<!--
+        <div class="section history-section">
+            <div class="history-display">
+                <h3>鱼群个体数量历史曲线</h3>
+                <div class="chart-container">
+                    <canvas id="lineChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+-->
+
+    <h1>鱼类数据分布曲线</h1>
+    
+    <!-- 鱼类选择 -->
+    <label for="fishType">选择鱼类:</label>
+    <select id="fishType">
+        <option value="Bream">Bream</option>
+        <option value="Roach">Roach</option>
+        <option value="Whitefish">Whitefish</option>
+        <option value="Parkki">Parkki</option>
+        <option value="Perch">Perch</option>
+        <option value="Pike">Pike</option>
+        <option value="Smelt">Smelt</option>
+    </select>
+    
+    <!-- 属性选择 -->
+    <label for="attribute">选择属性:</label>
+    <select id="attribute">
+        <option value="weight">weight</option>
+        <option value="length">length</option>
+        <option value="height">height</option>
+        <option value="width">width</option>
+    </select>
+    
+    
+    <canvas id="myChart" width="400" height="200"></canvas>
+
+    <div class="section data-section">
+        <div class="data-display">
+            <h3>网箱信息</h3>
+            <p>网箱长度 (m): <span id="length">100</span></p>
+            <p>网箱宽度 (m): <span id="width">50</span></p>
+            <p>网箱深度 (m): <span id="deepth">30</span></p>
+            <p>网箱经度 : <span id="jingdu">128.034</span></p>
+            <p>网箱纬度: <span id="weidu">56.123</span></p>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+    <h1>鱼群种类统计</h1>
+     <!-- 创建一个 canvas 元素用于绘制图表 -->
+     <canvas id="fishChart" width="400" height="400"></canvas>
+
+    <script>
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // 模拟从数据库获取的数据
+            const data1 = {
+                length:100,
+                width:50,
+                deepth:30,
+                jingdu:128.034,
+                weidu:56.123,
+                count: 102,
+                dailyAdditions: 10,
+                dailyDeaths: 2,
+                
+                historyData: {
+                    labels: ['2023-01-31', '2023-02-28', '2023-03-31', '2023-04-30', '2023-05-31'],
+                    count: [100, 102, 104, 97, 99]
+                }
+            };
+            const fishData1 = {
+            fish1: {
+                weight: [4, 5, 6, 7, 4, 5, 6, 7],
+                size: [20, 25, 30, 35, 20, 25, 30, 35],
+                life:[10,15,13,12,14,16,18,13]
+            },
+            fish2: {
+                weight: [3, 4, 5, 6, 3, 4, 5, 6],
+                size: [15, 20, 25, 30, 15, 20, 25, 30],
+                life:[10,15,13,12,14,16,18,13]
+
+            },
+            fish3: {
+                weight: [5, 6, 7, 8, 5, 6, 7, 8],
+                size: [25, 30, 35, 40, 25, 30, 35, 40],
+                life:[10,15,13,12,14,16,18,13]
+
+            },
+            fish4: {
+                weight: [4, 5, 6, 7, 4, 5, 6, 7],
+                size: [22, 27, 32, 37, 22, 27, 32, 37],
+                life:[10,15,13,12,14,16,18,13]
+
+            },
+            fish5: {
+                weight: [3, 4, 5, 6, 3, 4, 5, 6],
+                size: [18, 23, 28, 33, 18, 23, 28, 33],
+                life:[10,15,13,12,14,16,18,13]
+
+            }
+        };
+
+        const labels = {
+            weight: [200, 300, 400, 500, 600, 700, 800, 900],
+            length: [0, 10, 20, 30, 40, 50],
+            height:[4,8,12,16,20,20],
+            width:[2,4,6,8,10]
+
+        };
+        /*
+            // 绘制初始折线图
+            const ctx = document.getElementById('lineChart').getContext('2d');
+            const lineChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data1.historyData.labels,
+                    datasets: [
+                        {
+                            label: '数量',
+                            data: data1.historyData.count,
+                            borderColor: '#FF5733',
+                            backgroundColor: 'rgba(255, 87, 51, 0.2)',
+                            borderWidth: 2
+                        },
+                    ]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            */
+
+            // 获取上下文
+                var ctx1 = document.getElementById('myChart').getContext('2d');
+
+            // 数据处理函数，计算频率分布
+            function calculateDistribution(data, bins) {
+                const distribution = new Array(bins.length - 1).fill(0);
+                data.forEach(value => {
+                    for (let i = 1; i < bins.length; i++) {
+                        if (value <= bins[i]) {
+                            distribution[i - 1]++;
+                            break;
+                        }
+                    }
+                });
+                return distribution;
+            }
+
+        
+
+            // 将后端传递的 data 设置为全局变量
+            var fishData = JSON.parse('{{ json_data | escapejs | safe }}');
+            
+            //console.log(fishData['fish_data']);
+            console.log(fishData);
+            // 获取种类为 Bream 的 weight 数据
+            var breamWeights = fishData['fish_data']['Bream']['weight'];
+            // 获取种类为 Bream 的 weight 数据
+            //var breamWeights = data['fish_data']['Bream']['weight'];
+            console.log(breamWeights);
+
+            // 创建初始图表
+            var myChart = new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: labels.weight,
+                    datasets: [{
+                        label: 'Bream-体重',
+                        data: calculateDistribution(breamWeights, labels.weight),
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1,
+                        fill: true
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+
+        function loadData(callback) {
+            // 异步加载数据的逻辑，例如使用 fetch 或者 AJAX 请求
+            fetch('/api/fish-data')
+            .then(response => response.json())
+            .then(data => {
+                callback(data);
+            })
+            .catch(error => console.error('Error fetching data:', error));
+        }
+
+            // 更新图表函数
+            function updateChart() {
+                fishType = document.getElementById('fishType').value;
+                attribute = document.getElementById('attribute').value;
+
+                console.log("fishType:", fishType);
+                console.log("attribute:", attribute);
+
+                
+                bins = labels[attribute];
+                data = fishData['fish_data'][fishType][attribute];
+                distribution = calculateDistribution(data, bins);
+                
+                myChart.data.labels = bins;
+                myChart.data.datasets[0].data = distribution;
+                myChart.data.datasets[0].label = `${fishType === 'Bream' ? 'Bream' : fishType === 'Roach' ? 'Roach' : fishType === 'Whitefish' ? 'Whitefish' : fishType === 'Parkki' ? 'Parkki' : fishType === 'Perch' ? 'Perch' : fishType === 'Pike' ? 'Pike': 'Smelt'} - ${attribute === 'weight' ? '重量' :attribute === 'length' ? '长度': attribute === 'height' ? '高度': '宽度'}`;
+                myChart.update();
+            }
+
+            // 监听选择变化
+            document.getElementById('fishType').addEventListener('change', updateChart);
+            document.getElementById('attribute').addEventListener('change', updateChart);
+
+
+            const gauge = document.querySelector('.gauge');
+            const gaugePointer = document.querySelector('.gauge-pointer');
+            const gaugeCover = document.querySelector('.gauge-cover');
+            const score = fishData['score']; // 固定的评分
+
+            // 将评分转换为仪表盘指针的旋转度数
+            const pointerRotation = (score / 100) * 180; // 180度表示半圆
+            gaugePointer.style.transform = `translateX(-50%) translateY(-100%) rotate(${pointerRotation - 90}deg)`; // 调整指针的起始位置
+            gaugeCover.textContent = score;
+            
+            // 更新页面中的数据
+            document.getElementById('currentCount').textContent = fishData['total'];
+            document.getElementById('newAdditions').textContent = fishData['add'];
+            document.getElementById('deaths').textContent = fishData['minus'];
+
+            // 获取 canvas 元素的 2D 绘图上下文
+                var ctx2 = document.getElementById('fishChart').getContext('2d');
+
+            // 使用 Chart.js 创建一个新的饼状图
+            var fishChart = new Chart(ctx2, {
+                type: 'pie', // 图表类型：饼状图
+                data: {
+                    labels: ['Bream', 'Roach', 'Whitefish', 'Parkki', 'Perch','Pike','Smelt'], // 五种鱼群种类
+                    datasets: [{
+                        label: 'Fish Population',
+                        data: [35, 20, 6, 11, 56,17,14], // 每种鱼群的数量
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.2)', 
+                            'rgba(54, 162, 235, 0.2)', 
+                            'rgba(255, 206, 86, 0.2)', 
+                            'rgba(75, 192, 192, 0.2)', 
+                            'rgba(153, 102, 255, 0.2)'  
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true, // 自适应大小
+                    plugins: {
+                        legend: {
+                            position: 'top', // 图例位置
+                        },
+                        tooltip: {
+                            enabled: true // 启用工具提示
+                        }
+                    }
+                }
+            });
+            
+        });
+        
+    </script>
+</body>
+</html>

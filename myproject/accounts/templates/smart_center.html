@@ -1,0 +1,303 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能中心 - 海洋牧场监测可视化系统</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #0e1e2a;
+            color: white;
+            margin: 0;
+            padding: 0;
+        }
+
+        .navbar {
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            background-color: #1b2b3c;
+            padding: 10px;
+        }
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            font-size: 18px;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            grid-gap: 20px;
+            padding: 20px;
+        }
+
+        .card {
+            background-color: #1b2b3c;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .card h2, .card p {
+            margin: 5px 0;
+            font-size: 18px;
+        }
+
+        .video-container video {
+            width: 100%;
+            height: auto;
+            border: 2px solid white;
+            border-radius: 10px;
+        }
+
+        .video-container select {
+            margin-top: 20px;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        .gauge {
+            width: 100%;
+            height: 200px;
+            position: relative;
+        }
+        .gauge-body {
+            width: 100%;
+            height: 100%;
+            background: #ccc;
+            border-radius: 50%;
+            position: relative;
+            overflow: hidden;
+        }
+        .gauge-cover {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 40px;
+            background: #0e1e2a;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5em;
+        }
+        .gauge-pointer {
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-bottom: 120px solid #ff5733;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform-origin: center bottom;
+            transform: translateX(-50%) translateY(-100%) rotate(0deg);
+            transition: transform 0.3s ease-out;
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 300px;
+        }
+
+        .chart-container canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .alert {
+            color: red;
+            font-size: 18px;
+            margin-top: 20px;
+        }
+
+        .data-table {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-gap: 10px;
+        }
+
+        .data-table div {
+            background-color: #1b2b3c;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="navbar">
+        <a href="{% url '智能中心' %}">智能中心</a>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h2>当前气象数据</h2>
+            <p id="temperature">温度: --°C</p>
+            <p id="humidity">湿度: --%</p>
+            <p id="wind-speed">风速: -- m/s</p>
+        </div>
+
+        <div class="card video-container">
+            <h2>视频监控</h2>
+            <video id="videoPlayer" controls>
+                <source id="videoSource" src="{% static 'test.mp4' %}" type="video/mp4">
+                您的浏览器不支持 HTML5 视频播放。
+            </video>
+            <br>
+            <select id="videoSelect">
+                <option value="" selected disabled>选择一个视频</option>
+                <option value="{% static 'test.mp4' %}">视频1</option>
+                <option value="{% static 'video2.mp4' %}">视频2</option>
+                <option value="{% static 'video3.mp4' %}">视频3</option>
+                <option value="{% static 'video4.mp4' %}">视频4</option>
+            </select>
+        </div>
+
+        <div class="card">
+            <h2>海洋环境评分</h2>
+            <div class="gauge">
+                <div class="gauge-body"></div>
+                <div class="gauge-pointer"></div>
+                <div class="gauge-cover">70</div>
+            </div>
+            <p class="alert">警告: 水温过高</p>
+        </div>
+
+        <div class="card">
+            <h2>鱼群检测</h2>
+            <div class="chart-container">
+                <canvas id="fishChart"></canvas>
+            </div>
+            <p class="alert">网衣破损 (2024-02-01)</p>
+        </div>
+
+        <div class="card">
+            <h2>识别结果</h2>
+            <div class="image-container">
+                <img id="fishImage" src="{% static 'fish.jpg' %}" alt="Fish Image">
+            </div>
+            <button onclick="recognizeFish()">识别鱼类信息</button>
+            <p id="fishInfo">识别结果: --</p>
+        </div>
+
+        <div class="card data-table">
+            <div>
+                <p>编号</p>
+                <p>fish-9527</p>
+            </div>
+            <div>
+                <p>鱼种</p>
+                <p>moonfish</p>
+            </div>
+            <div>
+                <p>体长</p>
+                <p>10寸</p>
+            </div>
+            <div>
+                <p>体重</p>
+                <p>5kg</p>
+            </div>
+            <div>
+                <p>鱼群异常</p>
+                <p>集群</p>
+            </div>
+            <div>
+                <p>轨迹追踪</p>
+                <p>...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 替换为你自己的 OpenWeatherMap API Key
+            const apiKey = '5181858fa9f76259fd9301f6c6caadf8';
+            const city = 'Tianjin'; // 替换为你想要获取气象数据的城市
+            const apiUrl = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`;
+
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.main) {
+                        document.getElementById('temperature').textContent = `温度: ${data.main.temp}°C`;
+                        document.getElementById('humidity').textContent = `湿度: ${data.main.humidity}%`;
+                        document.getElementById('wind-speed').textContent = `风速: ${data.wind.speed} m/s`;
+                    } else {
+                        console.error('Error fetching weather data:', data);
+                    }
+                })
+                .catch(error => console.error('Error fetching weather data:', error));
+
+            // 视频选择功能
+            const videoSelect = document.getElementById('videoSelect');
+            const videoPlayer = document.getElementById('videoPlayer');
+            const videoSource = document.getElementById('videoSource');
+
+            videoSelect.addEventListener('change', function() {
+                const selectedVideo = videoSelect.value;
+                videoSource.src = selectedVideo;
+                videoPlayer.load();
+                videoPlayer.play();
+            });
+
+            const gauge = document.querySelector('.gauge');
+            const gaugePointer = document.querySelector('.gauge-pointer');
+            const gaugeCover = document.querySelector('.gauge-cover');
+            const score = calculateEnvironmentScore(); // 使用函数计算评分
+
+            // 将评分转换为仪表盘指针的旋转度数
+            const pointerRotation = (score / 100) * 180; // 180度表示半圆
+            gaugePointer.style.transform = `translateX(-50%) translateY(-100%) rotate(${pointerRotation - 90}deg)`; // 调整指针的起始位置
+            gaugeCover.textContent = score;
+
+            function calculateEnvironmentScore() {
+                // 计算环境评分的逻辑，可以根据实际需求进行调整
+                return 70;
+            }
+
+            // 绘制鱼群检测图表
+            const ctx = document.getElementById('fishChart').getContext('2d');
+            const fishChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['2023-01', '2023-02', '2023-03', '2023-04', '2023-05'],
+                    datasets: [{
+                        label: '鱼群数量',
+                        data: [12, 19, 3, 5, 2],
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        });
+
+        function recognizeFish() {
+            // 模拟图像识别的过程，实际情况可能需要调用后端API或使用前端库
+            const fishInfo = {
+                type: 'moonfish',
+                length: 25,
+                weight: 1.5
+            };
+            document.getElementById('fishInfo').textContent = `识别结果: ${fishInfo.type}, 体长: ${fishInfo.length} cm, 体重: ${fishInfo.weight} kg`;
+            document.getElementById('fishType').textContent = fishInfo.type;
+            document.getElementById('fishLength').textContent = fishInfo.length;
+            document.getElementById('fishWeight').textContent = fishInfo.weight;
+        }
+    </script>
+</body>
+</html>
